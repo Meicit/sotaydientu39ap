@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sổ Tay Điện Tử - Bình Hưng</title>
+    <!-- Sử dụng Tailwind CSS để làm đẹp giao diện -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Sử dụng FontAwesome cho các icon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Tùy chỉnh thanh trượt */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #3b82f6; /* Blue-500 */
+            cursor: pointer;
+            margin-top: -8px;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #4b5563; /* Gray-600 */
+            border-radius: 2px;
+        }
+        /* Hiệu ứng chuyển cảnh nhẹ cho ảnh */
+        #main-image {
+            transition: opacity 0.3s ease-in-out;
+        }
+        .fade-out {
+            opacity: 0;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200 h-screen flex flex-col overflow-hidden font-sans select-none">
+
+    <!-- Header -->
+    <header class="bg-gray-800 shadow-lg z-10 px-4 py-3 flex justify-between items-center border-b border-gray-700">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-600 text-white p-2 rounded-lg">
+                <i class="fa-solid fa-book-open"></i>
+            </div>
+            <div>
+                <h1 class="text-lg md:text-xl font-bold text-white leading-tight">SỔ TAY ĐIỆN TỬ 39 ẤP</h1>
+                <p class="text-xs md:text-sm text-gray-400">Xã Bình Hưng, TP.HCM</p>
+            </div>
+        </div>
+        <div class="text-sm md:text-base font-semibold bg-gray-700 px-4 py-1.5 rounded-full shadow-inner">
+            Trang <span id="current-page-text" class="text-blue-400">1</span> / <span id="total-pages-text">43</span>
+        </div>
+    </header>
+
+    <!-- Main Image Viewer -->
+    <main class="flex-1 relative flex items-center justify-center p-2 sm:p-4 md:p-8 overflow-hidden bg-black">
+        
+        <!-- Nút Trái -->
+        <button id="prev-btn" class="absolute left-2 md:left-6 z-20 bg-gray-800/60 hover:bg-gray-700 text-white w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center backdrop-blur-sm transition-all shadow-lg border border-gray-600/50 disabled:opacity-30 disabled:cursor-not-allowed" title="Trang trước (Mũi tên trái)">
+            <i class="fa-solid fa-chevron-left text-xl md:text-2xl"></i>
+        </button>
+
+        <!-- Container chứa Ảnh -->
+        <div class="relative h-full w-full flex items-center justify-center">
+            <!-- Ảnh Loading Spinner (Hiển thị khi ảnh đang tải) -->
+            <div id="loader" class="absolute inset-0 flex items-center justify-center hidden">
+                <i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-500"></i>
+            </div>
+            
+            <!-- Ảnh chính -->
+            <img id="main-image" src="page-1.jpg" alt="Trang 1" class="max-h-full max-w-full object-contain rounded-md shadow-2xl drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+        </div>
+
+        <!-- Nút Phải -->
+        <button id="next-btn" class="absolute right-2 md:right-6 z-20 bg-gray-800/60 hover:bg-gray-700 text-white w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center backdrop-blur-sm transition-all shadow-lg border border-gray-600/50 disabled:opacity-30 disabled:cursor-not-allowed" title="Trang sau (Mũi tên phải)">
+            <i class="fa-solid fa-chevron-right text-xl md:text-2xl"></i>
+        </button>
+    </main>
+
+    <!-- Footer / Thanh điều hướng nhanh -->
+    <footer class="bg-gray-800 px-6 py-4 border-t border-gray-700 z-10 flex flex-col items-center gap-2">
+        <div class="w-full max-w-4xl flex items-center gap-4">
+            <i class="fa-regular fa-image text-gray-500"></i>
+            <input type="range" id="page-slider" min="1" max="43" value="1" class="flex-1">
+            <i class="fa-solid fa-book text-gray-500"></i>
+        </div>
+        <p class="text-xs text-gray-500 mt-1">Kéo thanh trượt hoặc dùng phím mũi tên ⬅ ➡ để chuyển trang</p>
+    </footer>
+
+    <script>
+        // --- CẤU HÌNH CƠ BẢN ---
+        const CONFIG = {
+            totalPages: 43,           // Tổng số trang (Căn cứ vào dữ liệu PDF trước đó)
+            imagePrefix: 'page-',     // Tiền tố của tên file ảnh (VD: page-)
+            imageExtension: '.jpg'    // Đuôi file ảnh (VD: .jpg, .png)
+        };
+
+        // --- BIẾN TRẠNG THÁI ---
+        let currentPage = 1;
+
+        // --- DOM ELEMENTS ---
+        const mainImage = document.getElementById('main-image');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const pageSlider = document.getElementById('page-slider');
+        const currentPageText = document.getElementById('current-page-text');
+        const totalPagesText = document.getElementById('total-pages-text');
+        const loader = document.getElementById('loader');
+
+        // Khởi tạo giao diện
+        function init() {
+            pageSlider.max = CONFIG.totalPages;
+            totalPagesText.textContent = CONFIG.totalPages;
+            updatePage(currentPage);
+        }
+
+        // Cập nhật trang
+        function updatePage(page) {
+            // Ràng buộc giới hạn trang
+            if (page < 1) page = 1;
+            if (page > CONFIG.totalPages) page = CONFIG.totalPages;
+            
+            currentPage = page;
+            
+            // Cập nhật giao diện
+            currentPageText.textContent = currentPage;
+            pageSlider.value = currentPage;
+            
+            // Xử lý nút bấm (ẩn/hiện)
+            prevBtn.disabled = (currentPage === 1);
+            nextBtn.disabled = (currentPage === CONFIG.totalPages);
+
+            // Hiệu ứng mờ dần và thay đổi ảnh
+            mainImage.classList.add('fade-out');
+            loader.classList.remove('hidden');
+
+            setTimeout(() => {
+                // Tạo tên file, ví dụ: page-1.jpg
+                const imageUrl = `${CONFIG.imagePrefix}${currentPage}${CONFIG.imageExtension}`;
+                mainImage.src = imageUrl;
+            }, 150); // Đợi CSS transition chạy
+        }
+
+        // Bắt sự kiện khi ảnh load xong
+        mainImage.onload = () => {
+            mainImage.classList.remove('fade-out');
+            loader.classList.add('hidden');
+        };
+
+        // Bắt sự kiện lỗi (Nếu không tìm thấy ảnh)
+        mainImage.onerror = () => {
+            loader.classList.add('hidden');
+            mainImage.classList.remove('fade-out');
+            // Đổi sang một ảnh placeholder trong suốt hoặc báo lỗi nếu không có file
+            mainImage.alt = `Không tìm thấy file: ${CONFIG.imagePrefix}${currentPage}${CONFIG.imageExtension}. Hãy kiểm tra lại thư mục.`;
+        };
+
+        // --- CÁC SỰ KIỆN LẮNG NGHE ---
+
+        // Bấm nút Trái
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 1) updatePage(currentPage - 1);
+        });
+
+        // Bấm nút Phải
+        nextBtn.addEventListener('click', () => {
+            if (currentPage < CONFIG.totalPages) updatePage(currentPage + 1);
+        });
+
+        // Kéo thanh trượt
+        pageSlider.addEventListener('input', (e) => {
+            updatePage(parseInt(e.target.value));
+        });
+
+        // Dùng bàn phím (Mũi tên trái/phải)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') {
+                if (currentPage > 1) updatePage(currentPage - 1);
+            } else if (e.key === 'ArrowRight') {
+                if (currentPage < CONFIG.totalPages) updatePage(currentPage + 1);
+            }
+        });
+
+        // Chạy khởi tạo
+        init();
+    </script>
+</body>
+</html>
